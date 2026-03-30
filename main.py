@@ -155,19 +155,26 @@ def extract_features(img, use_hsv, use_fft, use_wavelet):
 # -----------------------------
 
 def build_dataset(split_files, size, use_hsv, use_fft, use_wavelet, limit=None):
+    entries = list(split_files)
+    available_classes = {label for _, label in entries}
+
     X = []
     y = []
     count = 0
-    for path, label in split_files:
+    seen_classes = set()
+
+    for path, label in entries:
         img = load_image(path, size)
         if img is None:
             continue
         feats = extract_features(img, use_hsv, use_fft, use_wavelet)
         X.append(feats)
         y.append(label)
+        seen_classes.add(label)
         count += 1
-        if limit is not None and count >= limit:
+        if limit is not None and count >= limit and seen_classes >= available_classes:
             break
+
     if not X:
         raise RuntimeError("No images were loaded for this split.")
     return np.vstack(X), np.array(y, dtype=np.int32)

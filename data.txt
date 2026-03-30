@@ -1,0 +1,2 @@
+https://www.kaggle.com/datasets/shivamardeshna/real-and-fake-images-dataset-for-image-forensics/code
+https://github.com/grip-unina/DMimageDetection
