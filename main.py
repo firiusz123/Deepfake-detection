@@ -252,7 +252,7 @@ def run_experiments(dataset_dir: Path, size: int, smoke: bool = False, output_cs
         print(f"Done: {combo} | feat_len={X_train.shape[1]} | val_acc={val_metrics['accuracy']:.4f} | test_acc={test_metrics['accuracy']:.4f}")
 
     df = pd.DataFrame(results)
-    df.to_csv(output_csv, index=False)
+    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S"); output_path = output_csv.replace(".csv", f"_{timestamp}.csv"); df.to_csv(output_path, index=False); print(f"Saved results to {output_path}")
 
     # Rank by validation F1
     ranked = df.sort_values(by="val_f1", ascending=False)
