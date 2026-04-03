@@ -1,10 +1,11 @@
+#!/pyenv/bin/python3
 import argparse
-from ai.cnn_baseline.pipeline import run_pipeline
+from ML.cnn_baseline.pipeline import run_pipeline
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--archive_path', type=str, required=True)
-    parser.add_argument('--img_size', type=int, default=224)
+    parser.add_argument('--img_size', type=int, default=256)
     parser.add_argument('--batch_size', type=int, default=32)
     parser.add_argument('--epochs', type=int, default=20)
     parser.add_argument('--lr', type=float, default=0.001)

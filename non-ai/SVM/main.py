@@ -1,10 +1,13 @@
 #!/usr/bin/env python3
 import argparse
+import datetime
 import itertools
 import math
 import os
+import re
 import sys
 from pathlib import Path
+from typing import Optional, Set
 
 import cv2
 import numpy as np
@@ -22,18 +25,37 @@ CLASSES = ["real", "fake"]
 
 
 def find_dataset_roots(base_dir: Path):
+    def _has_all_splits(path: Path) -> bool:
+        return path.is_dir() and all((path / split).is_dir() for split in SPLITS)
+
+    if not base_dir.is_dir():
+        return []
+
+    if _has_all_splits(base_dir):
+        return [base_dir]
+
     roots = []
-    for ds_dir in sorted(base_dir.glob("Data Set *")):
-        if not ds_dir.is_dir():
-            continue
-        inner = ds_dir / ds_dir.name
-        if inner.is_dir():
-            roots.append(inner)
+    for ds_dir in sorted(base_dir.iterdir()):
+        if _has_all_splits(ds_dir):
+            roots.append(ds_dir)
     return roots
 
 
-def collect_split_files(base_dir: Path):
+def _extract_dataset_index(name: str) -> Optional[int]:
+    match = re.search(r"(\d+)$", name)
+    return int(match.group(1)) if match else None
+
+
+def collect_split_files(base_dir: Path, dataset_indices: Set[int] | None = None):
     roots = find_dataset_roots(base_dir)
+    if dataset_indices:
+        filtered = []
+        for root in roots:
+            idx = _extract_dataset_index(root.name)
+            if idx is not None and idx in dataset_indices:
+                filtered.append(root)
+        roots = filtered
+
     if not roots:
         raise FileNotFoundError(f"No dataset roots found in: {base_dir}")
 
@@ -137,7 +159,77 @@ def wavelet_features(img, wavelet="db2", level=2):
     return np.array(feats, dtype=np.float32)
 
 
-def extract_features(img, use_hsv, use_fft, use_wavelet):
+def brightness_contrast_features(img):
+    img = img.astype(np.float32)
+    feats = []
+    for channel_idx in range(img.shape[2]):
+        channel = img[..., channel_idx]
+        feats.extend([
+            float(channel.mean()),
+            float(channel.std()),
+            float(channel.min()),
+            float(channel.max()),
+            float(np.median(channel)),
+            float(np.percentile(channel, 75.0)),
+        ])
+    return np.array(feats, dtype=np.float32)
+
+
+def noise_fingerprint(img):
+    gray = cv2.cvtColor(img, cv2.COLOR_RGB2GRAY).astype(np.float32)
+    filters = [
+        cv2.Sobel(gray, cv2.CV_32F, 1, 0, ksize=3),
+        cv2.Sobel(gray, cv2.CV_32F, 0, 1, ksize=3),
+        cv2.Laplacian(gray, cv2.CV_32F, ksize=3),
+    ]
+    feats = []
+    for arr in filters:
+        feats.extend([
+            float(arr.mean()),
+            float(arr.std()),
+            float(np.percentile(arr, 75.0)),
+        ])
+    return np.array(feats, dtype=np.float32)
+
+
+def patch_consistency_features(img, patch_size=16):
+    h, w = img.shape[:2]
+    patch_size = max(4, min(patch_size, h, w))
+    centers = [
+        (0, 0),
+        (0, w - patch_size),
+        (h - patch_size, 0),
+    ]
+    feats = []
+    for row, col in centers:
+        patch = img[row:row + patch_size, col:col + patch_size]
+        gray = cv2.cvtColor(patch, cv2.COLOR_RGB2GRAY).astype(np.float32)
+        feats.append(float(gray.mean()))
+        feats.append(float(gray.std()))
+    if feats:
+        feats.append(float(max(feats) - min(feats)))
+    else:
+        feats.append(0.0)
+    return np.array(feats, dtype=np.float32)
+
+
+def metadata_flags(path: Path, img):
+    h, w = img.shape[:2]
+    exists = float(path.exists())
+    avg = float(np.mean(img))
+    return np.array([exists, float(h), float(w), avg], dtype=np.float32)
+
+
+def extract_features(
+    img,
+    metadata: Optional[Path] = None,
+    use_hsv=True,
+    use_fft=True,
+    use_wavelet=True,
+    enable_noise_features=False,
+    enable_patch_consistency=False,
+    enable_metadata_flags=False,
+):
     feats = []
     if use_hsv:
         feats.append(hsv_features(img))
@@ -145,6 +237,13 @@ def extract_features(img, use_hsv, use_fft, use_wavelet):
         feats.append(fft_features(img))
     if use_wavelet:
         feats.append(wavelet_features(img))
+    if enable_noise_features:
+        feats.append(noise_fingerprint(img))
+    if enable_patch_consistency:
+        feats.append(patch_consistency_features(img))
+    if enable_metadata_flags:
+        meta_path = metadata if metadata is not None else Path(".")
+        feats.append(metadata_flags(meta_path, img))
     if not feats:
         raise ValueError("No feature types selected")
     return np.concatenate(feats)
@@ -154,7 +253,17 @@ def extract_features(img, use_hsv, use_fft, use_wavelet):
 # Experiment runner
 # -----------------------------
 
-def build_dataset(split_files, size, use_hsv, use_fft, use_wavelet, limit=None):
+def build_dataset(
+    split_files,
+    size,
+    use_hsv,
+    use_fft,
+    use_wavelet,
+    limit=None,
+    enable_noise_features=False,
+    enable_metadata_flags=False,
+    enable_patch_consistency=False,
+):
     entries = list(split_files)
     available_classes = {label for _, label in entries}
 
@@ -167,7 +276,16 @@ def build_dataset(split_files, size, use_hsv, use_fft, use_wavelet, limit=None):
         img = load_image(path, size)
         if img is None:
             continue
-        feats = extract_features(img, use_hsv, use_fft, use_wavelet)
+        feats = extract_features(
+            img,
+            path,
+            use_hsv=use_hsv,
+            use_fft=use_fft,
+            use_wavelet=use_wavelet,
+            enable_noise_features=enable_noise_features,
+            enable_metadata_flags=enable_metadata_flags,
+            enable_patch_consistency=enable_patch_consistency,
+        )
         X.append(feats)
         y.append(label)
         seen_classes.add(label)
@@ -203,58 +321,125 @@ def evaluate_model(clf, scaler, X, y):
     return metrics
 
 
-def run_experiments(dataset_dir: Path, size: int, smoke: bool = False, output_csv: str = "results.csv"):
+def run_experiments(
+    dataset_dir: Path,
+    size: int,
+    smoke: bool = False,
+    output_csv: str = "results.csv",
+    svm_kernels: str = "linear",
+    enable_noise_features: bool = False,
+    enable_metadata_flags: bool = False,
+    enable_patch_consistency: bool = False,
+    overfit_gap_threshold: float = 0.0,
+):
     split_files = collect_split_files(dataset_dir)
 
-    # Permutations of HSV/FFT/WAVELET (7 non-empty combos)
     feature_names = ["HSV", "FFT", "WAVELET"]
     combos = []
     for r in range(1, 4):
         for combo in itertools.combinations(feature_names, r):
             combos.append(combo)
 
+    kernels = [kernel.strip() for kernel in svm_kernels.split(",") if kernel.strip()]
+    if not kernels:
+        kernels = ["linear"]
+
+    limit = 20 if smoke else None
     results = []
+
+    def _gap(a, b):
+        if math.isnan(a) or math.isnan(b):
+            return float("nan")
+        return abs(a - b)
+
     for combo in combos:
         use_hsv = "HSV" in combo
         use_fft = "FFT" in combo
         use_wavelet = "WAVELET" in combo
 
-        limit = 20 if smoke else None
-
-        X_train, y_train = build_dataset(split_files["train"], size, use_hsv, use_fft, use_wavelet, limit=limit)
-        X_val, y_val = build_dataset(split_files["validation"], size, use_hsv, use_fft, use_wavelet, limit=limit)
-        X_test, y_test = build_dataset(split_files["test"], size, use_hsv, use_fft, use_wavelet, limit=limit)
+        X_train, y_train = build_dataset(
+            split_files["train"],
+            size,
+            use_hsv,
+            use_fft,
+            use_wavelet,
+            limit=limit,
+            enable_noise_features=enable_noise_features,
+            enable_metadata_flags=enable_metadata_flags,
+            enable_patch_consistency=enable_patch_consistency,
+        )
+        X_val, y_val = build_dataset(
+            split_files["validation"],
+            size,
+            use_hsv,
+            use_fft,
+            use_wavelet,
+            limit=limit,
+            enable_noise_features=enable_noise_features,
+            enable_metadata_flags=enable_metadata_flags,
+            enable_patch_consistency=enable_patch_consistency,
+        )
+        X_test, y_test = build_dataset(
+            split_files["test"],
+            size,
+            use_hsv,
+            use_fft,
+            use_wavelet,
+            limit=limit,
+            enable_noise_features=enable_noise_features,
+            enable_metadata_flags=enable_metadata_flags,
+            enable_patch_consistency=enable_patch_consistency,
+        )
 
         scaler = StandardScaler()
         X_train_scaled = scaler.fit_transform(X_train)
 
-        clf = LinearSVC()
-        clf.fit(X_train_scaled, y_train)
+        for kernel in kernels:
+            clf = LinearSVC()
+            clf.fit(X_train_scaled, y_train)
 
-        val_metrics = evaluate_model(clf, scaler, X_val, y_val)
-        test_metrics = evaluate_model(clf, scaler, X_test, y_test)
+            val_metrics = evaluate_model(clf, scaler, X_val, y_val)
+            test_metrics = evaluate_model(clf, scaler, X_test, y_test)
 
-        results.append({
-            "features": "+".join(combo),
-            "feature_len": X_train.shape[1],
-            "val_accuracy": val_metrics["accuracy"],
-            "val_precision": val_metrics["precision"],
-            "val_recall": val_metrics["recall"],
-            "val_f1": val_metrics["f1"],
-            "val_roc_auc": val_metrics["roc_auc"],
-            "test_accuracy": test_metrics["accuracy"],
-            "test_precision": test_metrics["precision"],
-            "test_recall": test_metrics["recall"],
-            "test_f1": test_metrics["f1"],
-            "test_roc_auc": test_metrics["roc_auc"],
-        })
+            f1_gap = _gap(val_metrics["f1"], test_metrics["f1"])
+            roc_gap = _gap(val_metrics["roc_auc"], test_metrics["roc_auc"])
+            overfit_flag = any(
+                gap >= overfit_gap_threshold for gap in (f1_gap, roc_gap) if not math.isnan(gap)
+            )
 
-        print(f"Done: {combo} | feat_len={X_train.shape[1]} | val_acc={val_metrics['accuracy']:.4f} | test_acc={test_metrics['accuracy']:.4f}")
+            results.append({
+                "svm_kernel": kernel,
+                "features": "+".join(combo),
+                "feature_len": X_train.shape[1],
+                "val_accuracy": val_metrics["accuracy"],
+                "val_precision": val_metrics["precision"],
+                "val_recall": val_metrics["recall"],
+                "val_f1": val_metrics["f1"],
+                "val_roc_auc": val_metrics["roc_auc"],
+                "test_accuracy": test_metrics["accuracy"],
+                "test_precision": test_metrics["precision"],
+                "test_recall": test_metrics["recall"],
+                "test_f1": test_metrics["f1"],
+                "test_roc_auc": test_metrics["roc_auc"],
+                "f1_gap": f1_gap,
+                "roc_gap": roc_gap,
+                "overfit_flag": overfit_flag,
+            })
+
+            print(
+                f"Done: kernel={kernel} | combo={combo} | feat_len={X_train.shape[1]} "
+                f"| val_acc={val_metrics['accuracy']:.4f} | test_acc={test_metrics['accuracy']:.4f}"
+            )
 
     df = pd.DataFrame(results)
-    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S"); output_path = output_csv.replace(".csv", f"_{timestamp}.csv"); df.to_csv(output_path, index=False); print(f"Saved results to {output_path}")
+    target_path = Path(output_csv)
+    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+    timestamped_path = target_path.with_name(f"{target_path.stem}_{timestamp}{target_path.suffix}")
+    target_path.parent.mkdir(parents=True, exist_ok=True)
+    df.to_csv(timestamped_path, index=False)
+    df.to_csv(target_path, index=False)
+    print(f"Saved results to {timestamped_path} and {target_path}")
 
-    # Rank by validation F1
     ranked = df.sort_values(by="val_f1", ascending=False)
     print("\nTop permutations by validation F1:")
     for _, row in ranked.iterrows():
@@ -266,17 +451,32 @@ def run_experiments(dataset_dir: Path, size: int, smoke: bool = False, output_cs
 
 def parse_args():
     p = argparse.ArgumentParser(description="HSV/FFT/Wavelet feature experiments")
-    p.add_argument("--dataset-dir", type=str, default="archive", help="Path to dataset root (contains Data Set X)")
+    p.add_argument("--dataset-dir", type=str, default="archive", help="Path to dataset root (contains named DataSet folders)")
     p.add_argument("--size", type=int, default=256, help="Resize images to size x size")
     p.add_argument("--smoke", action="store_true", help="Run on 20 images per split for a smoke test")
     p.add_argument("--output-csv", type=str, default="results.csv", help="Where to write results CSV")
+    p.add_argument("--svm-kernels", type=str, default="linear", help="Comma-separated kernel names (linear only)")
+    p.add_argument("--enable-noise-features", action="store_true", help="Include noise fingerprint features in vectors")
+    p.add_argument("--enable-metadata-flags", action="store_true", help="Append metadata-based flags per sample")
+    p.add_argument("--enable-patch-consistency", action="store_true", help="Append patch consistency statistics")
+    p.add_argument("--overfit-gap-threshold", type=float, default=0.0, help="Threshold to mark overfit gaps")
     return p.parse_args()
 
 
 if __name__ == "__main__":
     args = parse_args()
     try:
-        run_experiments(Path(args.dataset_dir), size=args.size, smoke=args.smoke, output_csv=args.output_csv)
+        run_experiments(
+            Path(args.dataset_dir),
+            size=args.size,
+            smoke=args.smoke,
+            output_csv=args.output_csv,
+            svm_kernels=args.svm_kernels,
+            enable_noise_features=args.enable_noise_features,
+            enable_metadata_flags=args.enable_metadata_flags,
+            enable_patch_consistency=args.enable_patch_consistency,
+            overfit_gap_threshold=args.overfit_gap_threshold,
+        )
     except Exception as e:
         print(f"Error: {e}")
         sys.exit(1)

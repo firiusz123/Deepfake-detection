@@ -1,3 +1,4 @@
 #!/bin/bash
-/root/.cline/worktrees/52937/Deepfake-detection/pyenv/bin/python train.py --archive_path ./archive --mode train
-/root/.cline/worktrees/52937/Deepfake-detection/pyenv/bin/python train.py --archive_path ./archive --mode test
+# Any arguments passed to this script (e.g. --epochs 10) are appended to the training command.
+python3 train.py --archive_path ./archive/DataSet1 --mode "train" "$@"
+python3 train.py --archive_path ./archive/DataSet1 --mode "test"

@@ -30,7 +30,7 @@ def _dummy_image(value: int, size: int = 32) -> np.ndarray:
 
 def _make_dummy_dataset(root: Path, dataset_number: int = 1):
     """Create a minimal dataset with real/fake splits for every partition."""
-    dataset_root = root / f"Data Set {dataset_number}" / f"Data Set {dataset_number}"
+    dataset_root = root / f"DataSet{dataset_number}"
     for split in SPLITS:
         for label in CLASSES:
             split_dir = dataset_root / split / label

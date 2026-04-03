@@ -1,6 +1,9 @@
 /pyenv
 /archive
 */__pycache__
+*/*/__pycache__
 *.zip
 .codex
 /rocs
+.pytest_cache
+model_best.pth
