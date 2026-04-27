@@ -14,6 +14,22 @@ import matplotlib.pyplot as plt
 from sklearn.metrics import roc_curve, auc
 
 
+def _apply_dark_plot_style():
+    ax = plt.gca()
+    fig = plt.gcf()
+
+    fig.patch.set_facecolor("#111111")
+    ax.set_facecolor("#1A1A1A")
+
+    ax.tick_params(colors="white")
+    ax.xaxis.label.set_color("white")
+    ax.yaxis.label.set_color("white")
+    ax.title.set_color("white")
+
+    for spine in ax.spines.values():
+        spine.set_color("#BDBDBD")
+
+
 
 # =====================================================
 # SETTINGS
@@ -89,14 +105,21 @@ def plot_roc_curve(y_true, y_probs, save_path="roc_curve.png"):
     roc_auc = auc(fpr, tpr)
 
     plt.figure()
-    plt.plot(fpr, tpr, label=f"AUC = {roc_auc:.4f}")
-    plt.plot([0, 1], [0, 1], linestyle="--")
+    _apply_dark_plot_style()
+    plt.plot(fpr, tpr, color="#39FFB6", linewidth=2.0, label=f"AUC = {roc_auc:.4f}")
+    plt.plot([0, 1], [0, 1], linestyle="--", color="#B0B0B0", linewidth=1.2)
     plt.xlabel("False Positive Rate")
     plt.ylabel("True Positive Rate")
     plt.title("ROC Curve")
-    plt.legend(loc="lower right")
+    plt.grid(color="#444444", linestyle="--", linewidth=0.5, alpha=0.8)
+    legend = plt.legend(loc="lower right")
+    legend.get_frame().set_facecolor("#1F1F1F")
+    legend.get_frame().set_edgecolor("#9A9A9A")
+    for text in legend.get_texts():
+        text.set_color("white")
 
-    plt.savefig(save_path)
+    plt.tight_layout()
+    plt.savefig(save_path, facecolor=plt.gcf().get_facecolor(), dpi=200)
     print(f"[INFO] ROC curve saved to {save_path}")
 
     plt.close()
@@ -112,13 +135,16 @@ def plot_confusion_matrix(y_true, y_pred, classes, normalize=False, save_path="c
         cm = cm.astype(float) / cm.sum(axis=1, keepdims=True)
 
     plt.figure()
-    plt.imshow(cm, interpolation="nearest")
+    _apply_dark_plot_style()
+    plt.imshow(cm, interpolation="nearest", cmap="magma")
     plt.title("Confusion Matrix" + (" (Normalized)" if normalize else ""))
-    plt.colorbar()
+    cbar = plt.colorbar()
+    cbar.ax.yaxis.set_tick_params(color="white")
+    plt.setp(plt.getp(cbar.ax.axes, "yticklabels"), color="white")
 
     tick_marks = np.arange(len(classes))
-    plt.xticks(tick_marks, classes)
-    plt.yticks(tick_marks, classes)
+    plt.xticks(tick_marks, classes, color="white")
+    plt.yticks(tick_marks, classes, color="white")
 
     # annotate cells
     for i in range(cm.shape[0]):
@@ -129,13 +155,13 @@ def plot_confusion_matrix(y_true, y_pred, classes, normalize=False, save_path="c
             else:
                 text = f"{int(val)}"
 
-            plt.text(j, i, text, ha="center", va="center")
+            plt.text(j, i, text, ha="center", va="center", color="white")
 
     plt.ylabel("True label")
     plt.xlabel("Predicted label")
 
     plt.tight_layout()
-    plt.savefig(save_path)
+    plt.savefig(save_path, facecolor=plt.gcf().get_facecolor(), dpi=200)
     print(f"[INFO] Confusion matrix saved to {save_path}")
 
     plt.close()

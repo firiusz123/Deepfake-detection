@@ -10,3 +10,4 @@
 *.png
 *.pt
 __pycache__
+*.svg
