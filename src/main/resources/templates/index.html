@@ -1,0 +1,846 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>DEEPTRACE</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@700;900&family=Cutive+Mono&display=swap" rel="stylesheet">
+  <style>
+    /* ═══════════════════════════════════════════════
+       BRUTALIST DESIGN SYSTEM
+       No gradients. No rounded corners. No mercy.
+    ═══════════════════════════════════════════════ */
+    :root {
+      --black:   #0a0a0a;
+      --white:   #f0ece0;
+      --yellow:  #ffe600;
+      --red:     #ff2200;
+      --green:   #00ff44;
+      --border:  4px solid var(--white);
+      --thick:   6px solid var(--white);
+
+    }
+
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    html {
+      background: var(--black);
+      color: var(--white);
+      font-family: 'Cutive Mono', monospace;
+      font-size: 14px;
+      cursor: crosshair;
+    }
+
+    body {
+      min-height: 100vh;
+      padding: 0;
+      overflow-x: hidden;
+    }
+
+    /* ── HEADER ─────────────────────────────────────────────────────── */
+    #site-header {
+      border-bottom: var(--thick);
+      padding: 0;
+      display: grid;
+      grid-template-columns: 1fr auto;
+    }
+
+    #logo-block {
+      padding: 18px 28px;
+      border-right: var(--thick);
+    }
+
+    #logo-block h1 {
+      font-family: 'Space Grotesk', sans-serif;
+      font-weight: 900;
+      font-size: clamp(2.8rem, 6vw, 5rem);
+      letter-spacing: -.02em;
+      line-height: .9;
+      color: var(--yellow);
+      text-transform: uppercase;
+    }
+
+    #logo-block .subtitle {
+      font-family: 'Cutive Mono', monospace;
+      font-size: .7rem;
+      letter-spacing: .25em;
+      text-transform: uppercase;
+      color: var(--white);
+      margin-top: 6px;
+      opacity: .5;
+    }
+
+    #header-meta {
+      padding: 18px 24px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      gap: 6px;
+      text-align: right;
+    }
+
+    .meta-pill {
+      font-size: .6rem;
+      letter-spacing: .18em;
+      text-transform: uppercase;
+      border: 2px solid var(--white);
+      padding: 4px 10px;
+      display: inline-block;
+    }
+
+    .meta-pill.active {
+      background: var(--yellow);
+      color: var(--black);
+      border-color: var(--yellow);
+    }
+
+    /* ── MARQUEE TICKER ─────────────────────────────────────────────── */
+    #ticker {
+      border-bottom: 4px solid var(--yellow);
+      background: var(--yellow);
+      color: var(--black);
+      overflow: hidden;
+      white-space: nowrap;
+      padding: 5px 0;
+    }
+
+    #ticker-inner {
+      display: inline-block;
+      animation: ticker-scroll 22s linear infinite;
+      font-family: 'Cutive Mono', monospace;
+      font-size: .65rem;
+      letter-spacing: .2em;
+      text-transform: uppercase;
+      font-weight: bold;
+    }
+
+    @keyframes ticker-scroll {
+      from { transform: translateX(100vw); }
+      to   { transform: translateX(-100%); }
+    }
+
+    /* ── MAIN LAYOUT ────────────────────────────────────────────────── */
+    #main {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      min-height: calc(100vh - 120px);
+    }
+
+    /* ── LEFT COLUMN ────────────────────────────────────────────────── */
+    #left-col {
+      border-right: var(--thick);
+      display: flex;
+      flex-direction: column;
+    }
+
+    .col-header {
+      padding: 12px 22px;
+      border-bottom: var(--border);
+      font-family: 'Space Grotesk', sans-serif;
+      font-weight: 700;
+      font-size: .75rem;
+      letter-spacing: .25em;
+      text-transform: uppercase;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .col-header .num {
+      font-size: 1.6rem;
+      font-weight: 900;
+      color: var(--yellow);
+      line-height: 1;
+    }
+
+    /* ── DROP ZONE ──────────────────────────────────────────────────── */
+    #drop-zone {
+      flex: 1;
+      margin: 22px;
+      border: 4px dashed rgba(240,236,224,.3);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 18px;
+      cursor: pointer;
+      position: relative;
+      overflow: hidden;
+      min-height: 300px;
+      transition: border-color .15s, background .15s;
+    }
+
+    #drop-zone:hover, #drop-zone.dragover {
+      border-color: var(--yellow);
+      background: rgba(255,230,0,.04);
+    }
+
+    #drop-zone input[type=file] {
+      position: absolute; inset: 0;
+      opacity: 0; cursor: pointer; z-index: 5;
+    }
+
+    /* ASCII art cross decoration */
+    #drop-zone::before {
+      content: '+';
+      position: absolute;
+      top: 10px; left: 14px;
+      font-size: 1.4rem;
+      color: rgba(255,230,0,.3);
+      line-height: 1;
+    }
+    #drop-zone::after {
+      content: '+';
+      position: absolute;
+      bottom: 10px; right: 14px;
+      font-size: 1.4rem;
+      color: rgba(255,230,0,.3);
+      line-height: 1;
+    }
+
+    .drop-text-big {
+      font-family: 'Space Grotesk', sans-serif;
+      font-weight: 900;
+      font-size: clamp(1.4rem, 3vw, 2.2rem);
+      letter-spacing: -.02em;
+      text-transform: uppercase;
+      text-align: center;
+      line-height: 1.1;
+    }
+
+    .drop-text-small {
+      font-size: .62rem;
+      letter-spacing: .2em;
+      text-transform: uppercase;
+      opacity: .4;
+      text-align: center;
+    }
+
+    /* ── PREVIEW ────────────────────────────────────────────────────── */
+    #preview-container {
+      display: none;
+      position: relative;
+    }
+
+    #preview-img {
+      width: 100%;
+      display: block;
+      filter: grayscale(30%) contrast(1.1);
+    }
+
+    /* Fat crosshair overlay */
+    #crosshair-h, #crosshair-v {
+      position: absolute;
+      background: rgba(255,230,0,.5);
+      pointer-events: none;
+    }
+    #crosshair-h { left:0; right:0; height:2px; top:50%; transform:translateY(-50%); }
+    #crosshair-v { top:0;  bottom:0; width:2px; left:50%; transform:translateX(-50%); }
+
+    /* Scanning bar */
+    #scan-bar {
+      display: none;
+      position: absolute;
+      left:0; right:0; height:3px;
+      background: var(--yellow);
+      box-shadow: 0 0 0 1px var(--black);
+      z-index: 10;
+      animation: scan 1.4s linear infinite;
+    }
+    @keyframes scan { from{top:0} to{top:100%} }
+
+    /* ── FILE INFO ──────────────────────────────────────────────────── */
+    #file-info {
+      margin: 0 22px 18px;
+      border: 2px solid rgba(240,236,224,.2);
+      padding: 10px 14px;
+      font-size: .62rem;
+      letter-spacing: .12em;
+      display: none;
+    }
+
+    #file-info .fi-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 2px 0;
+    }
+
+    #file-info .fi-key { opacity: .4; text-transform: uppercase; }
+    #file-info .fi-val { color: var(--yellow); }
+
+    /* ── ANALYSE BUTTON ─────────────────────────────────────────────── */
+    #analyse-btn {
+      margin: 0 22px 22px;
+      padding: 18px 0;
+      background: var(--yellow);
+      color: var(--black);
+      border: 4px solid var(--yellow);
+      font-family: 'Space Grotesk', sans-serif;
+      font-weight: 900;
+      font-size: 1.05rem;
+      letter-spacing: .12em;
+      text-transform: uppercase;
+      cursor: pointer;
+      transition: background .1s, color .1s, transform .08s;
+      display: none;
+    }
+
+    #analyse-btn:hover:not(:disabled) {
+      background: var(--black);
+      color: var(--yellow);
+    }
+
+    #analyse-btn:active:not(:disabled) {
+      transform: translate(3px,3px);
+    }
+
+    #analyse-btn:disabled {
+      opacity: .35;
+      cursor: not-allowed;
+    }
+
+    /* ── ERROR ──────────────────────────────────────────────────────── */
+    #error-box {
+      display: none;
+      margin: 0 22px 16px;
+      border: 4px solid var(--red);
+      padding: 12px 14px;
+      color: var(--red);
+      font-size: .65rem;
+      letter-spacing: .1em;
+      text-transform: uppercase;
+    }
+
+    /* ── RIGHT COLUMN ───────────────────────────────────────────────── */
+    #right-col {
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ── IDLE STATE ─────────────────────────────────────────────────── */
+    #idle-state {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 20px;
+      padding: 40px;
+      opacity: .18;
+    }
+
+    .idle-ascii {
+      font-size: .65rem;
+      line-height: 1.4;
+      letter-spacing: .05em;
+      text-align: center;
+      white-space: pre;
+    }
+
+    /* ── RESULT STATE ───────────────────────────────────────────────── */
+    #result-state {
+      display: none;
+      flex: 1;
+      flex-direction: column;
+    }
+
+    /* Verdict block */
+    #verdict-block {
+      padding: 28px 28px 22px;
+      border-bottom: var(--border);
+    }
+
+    #verdict-label {
+      font-family: 'Space Grotesk', sans-serif;
+      font-weight: 900;
+      font-size: clamp(4rem, 10vw, 7rem);
+      letter-spacing: -.03em;
+      line-height: .85;
+      text-transform: uppercase;
+    }
+
+    #verdict-label.real { color: var(--green); }
+    #verdict-label.fake { color: var(--red); }
+
+    #verdict-sub {
+      font-size: .62rem;
+      letter-spacing: .25em;
+      text-transform: uppercase;
+      opacity: .45;
+      margin-top: 10px;
+    }
+
+    /* Confidence number */
+    #conf-block {
+      padding: 18px 28px;
+      border-bottom: var(--border);
+      display: flex;
+      align-items: baseline;
+      gap: 14px;
+    }
+
+    #conf-number {
+      font-family: 'Space Grotesk', sans-serif;
+      font-weight: 900;
+      font-size: 3.2rem;
+      letter-spacing: -.04em;
+      line-height: 1;
+    }
+
+    #conf-label {
+      font-size: .62rem;
+      letter-spacing: .2em;
+      text-transform: uppercase;
+      opacity: .45;
+    }
+
+    /* ── PROBABILITY BARS ───────────────────────────────────────────── */
+    #bars-block {
+      padding: 18px 28px;
+      border-bottom: var(--border);
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .bar-row { display: flex; flex-direction: column; gap: 5px; }
+
+    .bar-meta {
+      display: flex;
+      justify-content: space-between;
+      font-size: .6rem;
+      letter-spacing: .18em;
+      text-transform: uppercase;
+    }
+
+    .bar-label-real { color: var(--green); }
+    .bar-label-fake { color: var(--red); }
+
+    .bar-track {
+      height: 10px;
+      background: rgba(240,236,224,.08);
+      border: 2px solid rgba(240,236,224,.12);
+      position: relative;
+    }
+
+    .bar-fill {
+      position: absolute;
+      top:0; left:0; bottom:0;
+      width: 0%;
+      transition: width 1s cubic-bezier(.16,1,.3,1);
+    }
+
+    .bar-fill.real { background: var(--green); }
+    .bar-fill.fake { background: var(--red); }
+
+    /* ── LOG BLOCK ──────────────────────────────────────────────────── */
+    #log-block {
+      padding: 18px 28px;
+      flex: 1;
+    }
+
+    .log-title {
+      font-size: .58rem;
+      letter-spacing: .25em;
+      text-transform: uppercase;
+      opacity: .35;
+      margin-bottom: 10px;
+    }
+
+    .log-entry {
+      display: flex;
+      gap: 16px;
+      padding: 3px 0;
+      border-bottom: 1px solid rgba(240,236,224,.06);
+      font-size: .6rem;
+      letter-spacing: .05em;
+    }
+
+    .log-entry .lk {
+      min-width: 120px;
+      opacity: .3;
+      text-transform: uppercase;
+    }
+
+    .log-entry .lv { color: var(--white); }
+    .log-entry .lv.real { color: var(--green); }
+    .log-entry .lv.fake { color: var(--red); }
+
+    /* ── FOOTER ─────────────────────────────────────────────────────── */
+    #footer {
+      border-top: var(--thick);
+      padding: 10px 22px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: .58rem;
+      letter-spacing: .15em;
+      text-transform: uppercase;
+      opacity: .3;
+    }
+
+
+    /* ── GIFS ───────────────────────────────────────────────────────── */
+    #worker-gif {
+      height: 80px;
+      display: block;
+      image-rendering: pixelated;
+    }
+    #email-gif {
+      display: block;
+      height: 36px;
+      border: 3px solid var(--black);
+    }
+    /* ── RESPONSIVE ─────────────────────────────────────────────────── */
+    @media (max-width: 700px) {
+      #main { grid-template-columns: 1fr; }
+      #left-col { border-right: none; border-bottom: var(--thick); }
+    }
+
+    /* ── ADVERT BANNER ──────────────────────────────────────────────── */
+    #advert-banner {
+      border-bottom: var(--thick);
+      background: var(--black);
+      overflow: hidden;
+      text-align: center;
+      padding: 10px 0;
+    }
+    #advert-inner {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 24px;
+    }
+    #advert-banner img {
+      max-height: 90px;
+      display: block;
+      filter: contrast(1.1) saturate(1.2);
+      border: 3px solid var(--yellow);
+    }
+    .advert-tag {
+      font-family: 'Cutive Mono', monospace;
+      font-size: .6rem;
+      letter-spacing: .2em;
+      text-transform: uppercase;
+      color: var(--yellow);
+      writing-mode: vertical-rl;
+      text-orientation: mixed;
+    }
+  </style>
+</head>
+<body>
+
+<!-- ── ADVERT BANNER ───────────────────────────────────────────────── -->
+<div id="advert-banner">
+  <div id="advert-inner">
+    <span class="advert-tag">&#x2605; SPONSORED &#x2605;</span>
+    <img src="kapitan_bomba.webp" alt="Kapitan Bomba - Zemsta Faraona"/>
+    <img id="email-gif" src="getemail.gif" alt="Get your free E-mail!"/>
+    <img id="worker2-gif" src="worker2.gif" alt="working2"/>
+    <span class="advert-tag">&#x2605; SPONSORED &#x2605;</span>
+  </div>
+</div>
+
+<!-- ── HEADER ──────────────────────────────────────────────────────── -->
+<header id="site-header">
+  <div id="logo-block" style="display:flex;align-items:center;gap:16px">
+    <div>
+    <h1>Deep<br>Trace</h1>
+    <p class="subtitle">Deepfake Detection System</p>
+    </div>
+  </div>
+  <div id="header-meta">
+    <span class="meta-pill active">ONLINE</span>
+    <span class="meta-pill">CNN v1</span>
+    <span class="meta-pill" id="clock-pill">--:--:--</span>
+  </div>
+</header>
+
+<!-- ── TICKER ──────────────────────────────────────────────────────── -->
+<div id="ticker">
+  <div id="ticker-inner">
+    WARNING: AI-GENERATED IMAGERY IS INCREASINGLY INDISTINGUISHABLE FROM REALITY &nbsp;&nbsp;///&nbsp;&nbsp;
+    MODEL: SimpleCNN (img_size=256) &nbsp;&nbsp;///&nbsp;&nbsp;
+    UPLOAD AN IMAGE TO BEGIN ANALYSIS &nbsp;&nbsp;///&nbsp;&nbsp;
+    SUPPORTED FORMATS: JPG &middot; PNG &middot; WEBP &nbsp;&nbsp;///&nbsp;&nbsp;
+    THIS TOOL IS FOR RESEARCH PURPOSES ONLY &nbsp;&nbsp;///&nbsp;&nbsp;
+    WARNING: AI-GENERATED IMAGERY IS INCREASINGLY INDISTINGUISHABLE FROM REALITY &nbsp;&nbsp;///&nbsp;&nbsp;
+  </div>
+</div>
+
+<!-- ── MAIN ────────────────────────────────────────────────────────── -->
+<div id="main">
+
+  <!-- LEFT: INPUT ──────────────────────────────────────────────────── -->
+  <section id="left-col">
+    <div class="col-header">
+      <span class="num">01</span>
+      SELECT IMAGE
+    </div>
+
+    <!-- Drop zone -->
+    <div id="drop-zone">
+      <input type="file" id="file-input" accept="image/*"/>
+
+      <div id="drop-empty">
+        <div class="drop-text-big">
+          DROP<br>IMAGE<br>HERE
+        </div>
+        <div class="drop-text-small">or click &mdash; jpg / png / webp</div>
+      </div>
+
+      <div id="preview-container">
+        <img id="preview-img" src="" alt="Preview"/>
+        <div id="crosshair-h"></div>
+        <div id="crosshair-v"></div>
+        <div id="scan-bar"></div>
+      </div>
+    </div>
+
+    <!-- File info -->
+    <div id="file-info">
+      <div class="fi-row">
+        <span class="fi-key">File</span>
+        <span class="fi-val" id="fi-name">—</span>
+      </div>
+      <div class="fi-row">
+        <span class="fi-key">Size</span>
+        <span class="fi-val" id="fi-size">—</span>
+      </div>
+      <div class="fi-row">
+        <span class="fi-key">Type</span>
+        <span class="fi-val" id="fi-type">—</span>
+      </div>
+    </div>
+
+    <!-- Error -->
+    <div id="error-box"></div>
+
+    <!-- Button -->
+    <button id="analyse-btn" disabled>
+      &#x25B6;&ensp;ANALYSE IMAGE
+    </button>
+
+  </section>
+
+  <!-- RIGHT: OUTPUT ────────────────────────────────────────────────── -->
+  <section id="right-col">
+    <div class="col-header">
+      <span class="num">02</span>
+      ANALYSIS OUTPUT
+    </div>
+
+    <!-- Idle -->
+    <div id="idle-state">
+      <pre class="idle-ascii">
+ ┌─────────────────┐
+ │   AWAITING      │
+ │   INPUT         │
+ │                 │
+ │   [_ _ _ _ _]   │
+ └─────────────────┘
+      </pre>
+      <div class="drop-text-small">No image loaded</div>
+    </div>
+
+    <!-- Result -->
+    <div id="result-state">
+
+      <div id="verdict-block">
+        <div id="verdict-label">—</div>
+        <div id="verdict-sub">Classification result</div>
+      </div>
+
+      <div id="conf-block">
+        <div id="conf-number">—</div>
+        <div id="conf-label">Confidence</div>
+      </div>
+
+      <div id="bars-block">
+        <div class="bar-row">
+          <div class="bar-meta">
+            <span class="bar-label-real">REAL</span>
+            <span class="bar-label-real" id="val-real">—</span>
+          </div>
+          <div class="bar-track">
+            <div class="bar-fill real" id="bar-real"></div>
+          </div>
+        </div>
+        <div class="bar-row">
+          <div class="bar-meta">
+            <span class="bar-label-fake">FAKE</span>
+            <span class="bar-label-fake" id="val-fake">—</span>
+          </div>
+          <div class="bar-track">
+            <div class="bar-fill fake" id="bar-fake"></div>
+          </div>
+        </div>
+      </div>
+
+      <div id="log-block">
+        <div class="log-title">// Inference log</div>
+        <div id="log-entries"></div>
+      </div>
+
+    </div>
+
+  </section>
+
+</div><!-- /main -->
+
+<!-- ── FOOTER ──────────────────────────────────────────────────────── -->
+<footer id="footer">
+  <span>DEEPTRACE &mdash; Spring Boot + SimpleCNN</span>
+  <span id="footer-ts"></span>
+</footer>
+
+<script>
+  /* ─── DOM refs ─────────────────────────────────────────────────── */
+  const dropZone       = document.getElementById('drop-zone');
+  const fileInput      = document.getElementById('file-input');
+  const dropEmpty      = document.getElementById('drop-empty');
+  const previewCont    = document.getElementById('preview-container');
+  const previewImg     = document.getElementById('preview-img');
+  const scanBar        = document.getElementById('scan-bar');
+  const fileInfo       = document.getElementById('file-info');
+  const fiName         = document.getElementById('fi-name');
+  const fiSize         = document.getElementById('fi-size');
+  const fiType         = document.getElementById('fi-type');
+  const analyseBtn     = document.getElementById('analyse-btn');
+  const errorBox       = document.getElementById('error-box');
+  const idleState      = document.getElementById('idle-state');
+  const resultState    = document.getElementById('result-state');
+
+  let selectedFile = null;
+
+  /* ─── Clock ─────────────────────────────────────────────────────── */
+  function tick() {
+    const ts = new Date().toISOString().replace('T',' ').slice(0,19);
+    document.getElementById('clock-pill').textContent = ts.slice(11) + ' UTC';
+    document.getElementById('footer-ts').textContent  = ts + ' UTC';
+  }
+  tick(); setInterval(tick, 1000);
+
+  /* ─── Drag & drop ────────────────────────────────────────────────── */
+  dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('dragover'); });
+  dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
+  dropZone.addEventListener('drop', e => {
+    e.preventDefault(); dropZone.classList.remove('dragover');
+    const f = e.dataTransfer.files[0];
+    if (f) loadFile(f);
+  });
+  fileInput.addEventListener('change', () => { if (fileInput.files[0]) loadFile(fileInput.files[0]); });
+
+  /* ─── Load file ──────────────────────────────────────────────────── */
+  function loadFile(file) {
+    if (!file.type.startsWith('image/')) { showError('NOT AN IMAGE. TRY AGAIN.'); return; }
+    selectedFile = file;
+    hideError();
+    resetResult();
+
+    const reader = new FileReader();
+    reader.onload = e => {
+      previewImg.src = e.target.result;
+      dropEmpty.style.display     = 'none';
+      previewCont.style.display   = 'block';
+      fileInfo.style.display      = 'block';
+      analyseBtn.style.display    = 'block';
+      analyseBtn.disabled         = false;
+    };
+    reader.readAsDataURL(file);
+
+    fiName.textContent = file.name;
+    fiSize.textContent = (file.size / 1024).toFixed(1) + ' KB';
+    fiType.textContent = file.type || 'unknown';
+  }
+
+  /* ─── Analyse ────────────────────────────────────────────────────── */
+  analyseBtn.addEventListener('click', async () => {
+    if (!selectedFile) return;
+
+    analyseBtn.disabled  = true;
+    analyseBtn.textContent = '⏳  PROCESSING...';
+    scanBar.style.display = 'block';
+    hideError();
+    resetResult();
+
+    const form = new FormData();
+    form.append('image', selectedFile);
+
+    try {
+      const res  = await fetch('/predict', { method: 'POST', body: form });
+      const data = await res.json();
+
+      if (data.error) throw new Error(data.error);
+      renderResult(data);
+    } catch (err) {
+      showError('ANALYSIS FAILED: ' + err.message.toUpperCase());
+    } finally {
+      scanBar.style.display  = 'none';
+      analyseBtn.disabled    = false;
+      analyseBtn.textContent = '▶  ANALYSE IMAGE';
+    }
+  });
+
+  /* ─── Render result ──────────────────────────────────────────────── */
+  function renderResult(data) {
+    const { label, confidence, realProb, fakeProb } = data;
+    const isFake = label === 'FAKE';
+
+    idleState.style.display   = 'none';
+    resultState.style.display = 'flex';
+
+    const vl = document.getElementById('verdict-label');
+    vl.textContent = label;
+    vl.className   = isFake ? 'fake' : 'real';
+
+    document.getElementById('conf-number').textContent   = confidence.toFixed(1) + '%';
+    document.getElementById('conf-number').style.color   = isFake ? 'var(--red)' : 'var(--green)';
+
+    document.getElementById('val-real').textContent = realProb.toFixed(1) + '%';
+    document.getElementById('val-fake').textContent = fakeProb.toFixed(1) + '%';
+
+    setTimeout(() => {
+      document.getElementById('bar-real').style.width = realProb + '%';
+      document.getElementById('bar-fake').style.width = fakeProb + '%';
+    }, 80);
+
+    // Log
+    const ts = new Date().toISOString().replace('T',' ').slice(0,19);
+    const entries = [
+      { k: 'TIMESTAMP',  v: ts + ' UTC',                    cls: '' },
+      { k: 'FILE',       v: selectedFile.name,               cls: '' },
+      { k: 'SIZE',       v: (selectedFile.size/1024).toFixed(1)+' KB', cls: '' },
+      { k: 'MODEL',      v: 'SimpleCNN img=256',             cls: '' },
+      { k: 'REAL PROB',  v: realProb.toFixed(4) + '%',       cls: 'real' },
+      { k: 'FAKE PROB',  v: fakeProb.toFixed(4) + '%',       cls: 'fake' },
+      { k: 'VERDICT',    v: label,                           cls: isFake ? 'fake' : 'real' },
+    ];
+    document.getElementById('log-entries').innerHTML = entries
+      .map(e => `<div class="log-entry"><span class="lk">${e.k}</span><span class="lv ${e.cls}">${e.v}</span></div>`)
+      .join('');
+  }
+
+  function resetResult() {
+    idleState.style.display   = 'flex';
+    resultState.style.display = 'none';
+    document.getElementById('bar-real').style.width = '0%';
+    document.getElementById('bar-fake').style.width = '0%';
+  }
+
+  function showError(msg) {
+    errorBox.style.display = 'block';
+    errorBox.textContent   = '⚠ ' + msg;
+  }
+
+  function hideError() {
+    errorBox.style.display = 'none';
+  }
+</script>
+</body>
+</html>

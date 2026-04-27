@@ -1,0 +1,4 @@
+com\deepfake\DeepfakeApplication.class
+com\deepfake\service\InferenceService.class
+com\deepfake\model\InferenceResult.class
+com\deepfake\controller\DeepfakeController.class
