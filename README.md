@@ -1,5 +1,5 @@
 # DeepTrace — AI Deepfake Detection
-
+Made by Phillip Rzeszótko and Michał Domański
 > CNN-based image forensics system for detecting AI-generated and deepfake imagery.  
 > Two interfaces: a Spring Boot web app and a standalone desktop screen-snip tool.
 
