@@ -1,4 +1,5 @@
 # DeepTrace — AI Deepfake Detection
+Made By Phillip Rzeszotko and Michal Domanski
 
 > CNN-based image forensics system for detecting AI-generated and deepfake imagery.  
 > The current model achieves **95.4% accuracy on unseen GAN-generated images** despite being trained only on Stable Diffusion outputs — demonstrating real cross-generator generalisation.
