@@ -63,7 +63,7 @@ The model processes each input through two parallel branches, fused by a learned
 
 **High-level overview:**
 <p align="center">
-  <img src="file:///C:/Users/Flippy/Downloads/wavelet_architecture.svg"/>
+  <img src="docs/images/wavelet_architecture.png" width="640" alt="WaveletHybridNet architecture"/>
 </p>
 
 
