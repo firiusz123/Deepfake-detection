@@ -62,32 +62,10 @@ The model processes each input through two parallel branches, fused by a learned
 </p>
 
 **High-level overview:**
+<p align="center">
+  <img src="file:///C:/Users/Flippy/Downloads/wavelet_architecture.svg"/>
+</p>
 
-```
-Input Image (128×128)
-        │
-        ├──────────────────────────────────┐
-        ▼                                  ▼
-  RGB Branch                       Wavelet Branch (db4, 2 levels)
-  Conv(3 → 32)  + BN + Pool         ┌─ Level 1: LL₁ LH₁ HL₁ HH₁
-  Conv(32 → 64) + BN + Pool         └─ Level 2: LL₂ LH₂ HL₂ HH₂
-  Conv(64 → 128) + BN                            │
-        │                              Level Attention
-        │                              (learns which wavelet level matters)
-        │                                          │
-        └────────── Residual Fusion ────────────────┘
-                          │
-                  RGB Refinement × 2
-                  Wav Refinement × 2
-                          │
-                  Global Average Pool
-                          │
-                  Final Attention (RGB vs Wav fusion)
-                          │
-                  FC(128 → 64) → FC(64 → 2)
-                          │
-                     REAL / FAKE
-```
 
 The wavelet branch decomposes the image using a **Daubechies db4** wavelet at two levels, extracting the high-frequency subbands (LH, HL, HH) that encode the subtle compression and generation artifacts left by AI generators — signals largely invisible to a standard RGB CNN.
 
