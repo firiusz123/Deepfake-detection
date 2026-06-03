@@ -111,22 +111,9 @@ The model performs best on **portrait / headshot images**. AI-generated scenes a
 
 The browser interface runs as a Spring Boot application on `localhost:8080`. Image uploads travel over HTTP as `multipart/form-data`, are written to a temp file by the Java controller, passed to the Python inference script via a subprocess, and the JSON result is returned as an HTTP response rendered live in the browser.
 
-```
-Browser  ──[HTTP POST multipart]──▶  Spring Boot (Java 17)
-                                            │
-                                     saves temp file
-                                            │
-                                   ProcessBuilder subprocess
-                                            │
-                                     infer_v2.py
-                                     WaveletHybridNet
-                                     RGB + Wavelet branches
-                                            │
-                                       JSON stdout
-                                            │
-Browser  ◀──[HTTP JSON response]────────────┘
-```
-
+<p align="center">
+  <img src="docs/images/web_architecture.png" width="640" alt="WaveletHybridNet architecture"/>
+</p>
 ---
 
 ## Future Work
